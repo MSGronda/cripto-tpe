@@ -1,5 +1,6 @@
 package ar.edu.itba;
 
+import ar.edu.itba.stenography.LSB4;
 import ar.edu.itba.utils.Arguments;
 import ar.edu.itba.utils.Parser;
 import ar.edu.itba.stenography.LSB1;
@@ -26,9 +27,9 @@ public class Main {
             return;
         }
         byte[] infile = "asdofoasdjfojasf".getBytes();
-        BMPFile outfile = LSB1.hideFile(new BMPFile(file), infile, infile.length);
+        BMPFile outfile = LSB4.hideFile(new BMPFile(file), infile, infile.length);
 
-        byte[] hidden = LSB1.obtainFile(outfile);
+        byte[] hidden = LSB4.obtainFile(outfile);
         System.out.println(Arrays.toString(infile));
         System.out.println(Arrays.toString(hidden));
     }
