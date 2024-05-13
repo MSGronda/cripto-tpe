@@ -23,8 +23,8 @@ public class LSB1 {
         // Ocultamos el tamaño del archivo
         int size = contentSize;
         for(int i=INT_SIZE-1; i>=0; i--){                               // Voy de atras para adelante
-            outBytes[outByteOffset + i] &= (byte) (~0x1 | (size & 0x1));
-
+            outBytes[outByteOffset + i] &= (byte) (~0x1);
+            outBytes[outByteOffset + i] |= (byte) (size & 0x1);
             size >>>= 1;
         }
 
@@ -35,8 +35,8 @@ public class LSB1 {
             byte byteToHide = b;
 
             for (int j = BITS_IN_BYTE - 1; j >= 0; j--) {                // Voy de atras para adelante
-                outBytes[outByteOffset + j] &= (byte) (~0x1 | (byteToHide & 0x1));
-
+                outBytes[outByteOffset + j] &= (byte) (~0x1);
+                outBytes[outByteOffset + j] |= (byte) (byteToHide & 0x1);
                 byteToHide >>>= 1;
             }
 
