@@ -2,19 +2,17 @@ package ar.edu.itba;
 
 import ar.edu.itba.utils.Arguments;
 import ar.edu.itba.utils.Parser;
-
+import ar.edu.itba.stenography.LSB1;
+import ar.edu.itba.utils.BMPFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 public class Main {
-
-
-
-
     public static void main(String[] args) {
         byte[] file;
 
@@ -27,13 +25,12 @@ public class Main {
             System.out.println(e);
             return;
         }
+        byte[] infile = "asdofoasdjfojasf".getBytes();
+        BMPFile outfile = LSB1.hideFile(new BMPFile(file), infile, infile.length);
 
-        ByteBuffer buffer =  ByteBuffer.wrap(file).order(ByteOrder.LITTLE_ENDIAN);
-
-        System.out.println((char) file[0] + (char) file[1]);
-        System.out.println(buffer.getInt(2));
-
-
+        byte[] hidden = LSB1.obtainFile(outfile);
+        System.out.println(Arrays.toString(infile));
+        System.out.println(Arrays.toString(hidden));
     }
 
 
