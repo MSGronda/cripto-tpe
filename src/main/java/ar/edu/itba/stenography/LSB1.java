@@ -5,10 +5,9 @@ import ar.edu.itba.utils.BMPFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static ar.edu.itba.utils.Util.*;
+
 public class LSB1 {
-    private static final int BITS_IN_BYTE = 8;
-    private static final int INT_SIZE = Integer.BYTES * BITS_IN_BYTE;
-    private static final int BMP_HEADER_SIZE = 54;
     private static final int FILE_SIZE = 0;
     private static final int OFFSET = 1;
 

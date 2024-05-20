@@ -2,14 +2,14 @@ package ar.edu.itba.stenography;
 
 import ar.edu.itba.utils.BMPFile;
 
+import static ar.edu.itba.utils.Util.BITS_IN_BYTE;
+import static ar.edu.itba.utils.Util.BMP_HEADER_SIZE;
+
 public class LSB4 {
-
-    private static final int BITS_IN_BYTE = 8;
+    private static final int FILE_SIZE = 0;
+    private static final int OFFSET = 1;
     private static final int BITS_TO_HIDE = 4;
-
     private static final int INT_SIZE = Integer.BYTES * BITS_IN_BYTE / BITS_TO_HIDE; // 4 * 8 / 4 = 8
-
-    private static final int BMP_HEADER_SIZE = 54;
 
     public static BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
         if(inFile.getContentSize() < fileToHide.length * BITS_IN_BYTE / BITS_TO_HIDE + INT_SIZE ){
@@ -50,18 +50,12 @@ public class LSB4 {
     public static byte[] obtainFile(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
 
-        int inBytesOffset = BMP_HEADER_SIZE;
         int outBytesOffset = 0;
 
         // Obtenemos el tamaño de lo obtenido
-        int fileSize = 0;
-        for (int i = 0 ; i < INT_SIZE; i++){
-            fileSize |= (byte) (inBytes[inBytesOffset] & 0x0F);
-            inBytesOffset++;
-            if(i < INT_SIZE - 1){
-                fileSize <<= BITS_TO_HIDE;
-            }
-        }
+        int[] sizeData = getFileSize(inFile);
+        int fileSize = sizeData[FILE_SIZE];
+        int inBytesOffset = sizeData[OFFSET];
 
         byte[] outBytes = new byte[fileSize];
 
@@ -82,5 +76,52 @@ public class LSB4 {
         }
 
         return outBytes;
+    }
+
+    public static String getExtension(BMPFile inFile){
+        byte[] inBytes = inFile.getBytes();
+
+        int[] size = getFileSize(inFile);
+        int inBytesOffset = 2 * size[FILE_SIZE] + size[OFFSET];
+
+        StringBuilder resp = new StringBuilder();
+
+        byte extractedByte = 1;
+        while(extractedByte != 0){
+
+            extractedByte = 0;
+
+            for (int j = 0; j < BITS_IN_BYTE / BITS_TO_HIDE; j++){
+                extractedByte |= (byte) (inBytes[inBytesOffset] & 0x0F);
+                inBytesOffset++;
+
+                if(j < BITS_IN_BYTE / BITS_TO_HIDE - 1){
+                    extractedByte <<= BITS_TO_HIDE;
+                }
+            }
+
+            if( extractedByte != 0) {
+                resp.append((char) extractedByte);
+            }
+        }
+
+        return resp.toString();
+    }
+
+    private static int[] getFileSize(BMPFile inFile){
+        byte[] inBytes = inFile.getBytes();
+        int inBytesOffset = BMP_HEADER_SIZE;
+
+        int fileSize = 0;
+
+        for (int i = 0 ; i < INT_SIZE; i++){
+            fileSize |= (byte) (inBytes[inBytesOffset] & 0x0F);
+            inBytesOffset++;
+            if(i < INT_SIZE - 1){
+                fileSize <<= BITS_TO_HIDE;
+            }
+        }
+
+        return new int[]{fileSize, inBytesOffset};
     }
 }
