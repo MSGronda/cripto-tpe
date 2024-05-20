@@ -9,6 +9,8 @@ public class LSB1 {
     private static final int BITS_IN_BYTE = 8;
     private static final int INT_SIZE = Integer.BYTES * BITS_IN_BYTE;
     private static final int BMP_HEADER_SIZE = 54;
+    private static final int FILE_SIZE = 0;
+    private static final int OFFSET = 1;
 
     public static BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
         if(inFile.getContentSize() < fileToHide.length * BITS_IN_BYTE + INT_SIZE){
@@ -49,19 +51,12 @@ public class LSB1 {
     public static byte[] obtainFile(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
 
-        int inBytesOffset = BMP_HEADER_SIZE;
         int outBytesOffset = 0;
 
         // Obtenemos el tamaño de lo obtenido
-        int fileSize = 0;
-        for (int i = 0 ; i < INT_SIZE; i++){
-            fileSize |= (byte) (inBytes[inBytesOffset] & 0x1);
-            inBytesOffset++;
-
-            if(i<INT_SIZE-1){
-                fileSize <<= 1;
-            }
-        }
+        int[] sizeData = getFileSize(inFile);
+        int fileSize = sizeData[FILE_SIZE];
+        int inBytesOffset = sizeData[OFFSET];
 
         if(fileSize > inBytes.length - (BMP_HEADER_SIZE + INT_SIZE)){
             throw new RuntimeException("No dan los numeros");
@@ -89,4 +84,49 @@ public class LSB1 {
         return outBytes;
     }
 
+    public static String getExtension(BMPFile inFile){
+        byte[] inBytes = inFile.getBytes();
+
+        int[] size = getFileSize(inFile);
+        int inBytesOffset = 8 * size[FILE_SIZE] + size[OFFSET];
+
+        StringBuilder resp = new StringBuilder();
+
+        byte extractedByte = 1;
+        while(extractedByte != 0){
+
+            extractedByte = 0;
+
+            for(int j=0; j < BITS_IN_BYTE; j++){
+                extractedByte |= (byte) (inBytes[inBytesOffset] & 0x1);
+                inBytesOffset++;
+
+                if(j < BITS_IN_BYTE - 1){
+                    extractedByte <<= 1;
+                }
+            }
+            if( extractedByte != 0) {
+                resp.append((char) extractedByte);
+            }
+        }
+
+        return resp.toString();
+    }
+
+    private static int[] getFileSize(BMPFile inFile){
+        byte[] inBytes = inFile.getBytes();
+        int inBytesOffset = BMP_HEADER_SIZE;
+
+        int fileSize = 0;
+
+        for (int i = 0 ; i < INT_SIZE; i++){
+            fileSize |= (byte) (inBytes[inBytesOffset] & 0x1);
+            inBytesOffset++;
+
+            if(i<INT_SIZE-1){
+                fileSize <<= 1;
+            }
+        }
+        return new int[]{fileSize, inBytesOffset};
+    }
 }
