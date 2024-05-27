@@ -38,13 +38,13 @@ public class LSBImproved {
         byte[] inBytes = inFile.getBytes();
 
         // Conseguimos las ocurrencias iniciales de los patrones
-        int[] patternOccurrences = countPatternOccurrences(inBytes, LSB1_START_OFFSET, bytesRequiredToHide);
+        int[] patternOccurrences = countPatternOccurrences(inBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
 
         BMPFile outFile = lsb1IgnoringRed(inFile, LSB1_START_OFFSET,  fileToHide, contentSize);
         byte[] outBytes = outFile.getBytes();
 
         // Contamos la cantidad de veces (para cada patron) que cambio el ultimo bit
-        int[] bitChanged = checkBitsChanged(inBytes, outBytes);
+        int[] bitChanged = checkBitsChanged(inBytes, outBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
 
         // Decidimos cuales de los patrones deberian invertirse y cuales no
         boolean[] inversions = calculateInversions(patternOccurrences, bitChanged);
@@ -110,9 +110,9 @@ public class LSBImproved {
         }
     }
 
-    private static int[] checkBitsChanged(byte[] inBytes, byte[] outBytes){
+    private static int[] checkBitsChanged(byte[] inBytes, byte[] outBytes, int from, int to){
         int[] bitChanged = new int[NUM_PATTERNS];
-        for(int i=0; i<inBytes.length; i++){
+        for(int i=from; i<to; i++){
             byte patternBits = (byte) (inBytes[i] & PATTERN_BITS);
 
             switch (patternBits) {
@@ -126,7 +126,7 @@ public class LSBImproved {
         return bitChanged;
     }
     private static void checkBitChanged(byte[] inBytes, byte[] outBytes, int i, int[] bitChanged, int patternPos) {
-        if((inBytes[i] & ~ 0x1) != (outBytes[i] & ~ 0x1)){
+        if((inBytes[i] & 0x1) != (outBytes[i] & 0x1)){
             bitChanged[patternPos]++;
         }
     }
@@ -200,7 +200,7 @@ public class LSBImproved {
     private static void hideByte(byte byteToHide, byte[] outBytes, int outByteOffset, int bytesRequired){
         int pos = byteColor(outByteOffset);
 
-        for (int j=bytesRequired; j>=0; ) {                // Voy de atras para adelante
+        for (int j=bytesRequired - 1; j>=0; ) {                // Voy de atras para adelante
             outBytes[outByteOffset + j] &= (byte) (~0x1);
             outBytes[outByteOffset + j] |= (byte) (byteToHide & 0x1);
             byteToHide >>>= 1;
@@ -227,10 +227,8 @@ public class LSBImproved {
 
         // Dependiendo del indice actual (si corresponde con uno rojo, azul o verde), tenemos que agregar/restar bytes.
         byte color = byteColor(idx);
-        switch (color){
-            case BLUE_BYTE -> bytesRequired -= 1;
-            case GREEN_BYTE -> bytesRequired += 1;
-            case RED_BYTE -> bytesRequired += 2;
+        if(color == BLUE_BYTE){
+            bytesRequired -= 1;
         }
 
         return bytesRequired;
