@@ -40,11 +40,11 @@ public class LSBImproved {
         // Conseguimos las ocurrencias iniciales de los patrones
         int[] patternOccurrences = countPatternOccurrences(inBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
 
-        BMPFile outFile = lsb1IgnoringRed(inFile, LSB1_START_OFFSET,  fileToHide, contentSize);
+        BMPFile outFile = hideLSB1IgnoringRed(inFile, LSB1_START_OFFSET,  fileToHide, contentSize);
         byte[] outBytes = outFile.getBytes();
 
         // Contamos la cantidad de veces (para cada patron) que cambio el ultimo bit
-        int[] bitChanged = checkBitsChanged(inBytes, outBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
+        int[] bitChanged = countBitsChanged(inBytes, outBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
 
         // Decidimos cuales de los patrones deberian invertirse y cuales no
         boolean[] inversions = calculateInversions(patternOccurrences, bitChanged);
@@ -56,6 +56,62 @@ public class LSBImproved {
 
         return outFile;
     }
+
+    public static byte[] obtainFile(BMPFile inFile){
+        byte[] inBytes = inFile.getBytes();
+
+        boolean[] inversions = getInversions(inBytes);
+
+        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, bytesRequired(LSB1_START_OFFSET, INT_SIZE));
+
+        byte[] outBytes = new byte[fileSize];
+
+
+        // TODO: complete
+
+        return outBytes;
+    }
+
+    // = = = = = = = = Auxiliary methods for Obtain = = = = = = = =
+
+    private static int getFileSize(byte[] inBytes, int from, int to){
+
+        int fileSize = 0;
+
+        int pos = byteColor(to - 1);
+        for (int i = to - 1; i >= from; ){
+            fileSize |= (byte) (inBytes[i] & 0x1);
+
+            if(i < INT_BIT_SIZE -1){
+                fileSize <<= 1;
+            }
+            if(pos == GREEN_BYTE){
+                i--;
+                pos = BLUE_BYTE;
+            }
+            else if(pos == BLUE_BYTE){
+                i -= 2;             // Skipeo el rojo
+                pos = GREEN_BYTE;
+            }
+            else{
+                throw new RuntimeException("Esto no deberia ocurrir!");
+            }
+        }
+        return fileSize;
+    }
+    private static boolean[] getInversions(byte[] inBytes) {
+        boolean[] inversions = new boolean[NUM_PATTERNS];
+
+        for(int i=0; i<NUM_PATTERNS; i++){
+            if((inBytes[BMP_HEADER_SIZE + i] & 0x1) == 1){
+                inversions[i] = true;
+            }
+        }
+
+        return inversions;
+    }
+
+    // = = = = = = = = Auxiliary methods for Hide = = = = = = = =
 
     private static void storeInversionBits(byte[] outBytes, boolean[] inversion){
         for(int i=0; i<NUM_PATTERNS; i++){
@@ -75,9 +131,9 @@ public class LSBImproved {
     }
 
     private static void invertBits(byte[] outBytes, int from, int to, boolean[] inversions){
-        byte pos = byteColor(from);
+        byte pos = byteColor(to - 1);
 
-        for(int i=to; i>=from; ){
+        for(int i = to - 1; i>=from; ){
             byte patternBits = (byte) (outBytes[i] & PATTERN_BITS);
 
             switch (patternBits){
@@ -110,7 +166,7 @@ public class LSBImproved {
         }
     }
 
-    private static int[] checkBitsChanged(byte[] inBytes, byte[] outBytes, int from, int to){
+    private static int[] countBitsChanged(byte[] inBytes, byte[] outBytes, int from, int to){
         int[] bitChanged = new int[NUM_PATTERNS];
         for(int i=from; i<to; i++){
             byte patternBits = (byte) (inBytes[i] & PATTERN_BITS);
@@ -134,9 +190,9 @@ public class LSBImproved {
     private static int[] countPatternOccurrences(byte[] inBytes, int from, int to){
         int[] patternOccurrences = new int[NUM_PATTERNS];
 
-        byte pos = byteColor(from);
+        byte pos = byteColor(to - 1);
 
-        for(int i = to; i>=from; ){
+        for(int i = to - 1; i>=from; ){
             byte patternBits = (byte) (inBytes[i] & PATTERN_BITS);
 
             switch (patternBits) {
@@ -169,7 +225,7 @@ public class LSBImproved {
 
     // = = = = = = = = LSB1 ignoring red = = = = = = = =
 
-    private static BMPFile lsb1IgnoringRed(BMPFile inFile, int from, byte[] fileToHide, int contentSize){
+    private static BMPFile hideLSB1IgnoringRed(BMPFile inFile, int from, byte[] fileToHide, int contentSize){
         // El chequeo de tamaño lo hacemos afuera
 
         BMPFile outFile = new BMPFile(inFile);
@@ -198,7 +254,7 @@ public class LSBImproved {
     }
 
     private static void hideByte(byte byteToHide, byte[] outBytes, int outByteOffset, int bytesRequired){
-        int pos = byteColor(outByteOffset);
+        int pos = byteColor(outByteOffset + bytesRequired - 1);
 
         for (int j=bytesRequired - 1; j>=0; ) {                // Voy de atras para adelante
             outBytes[outByteOffset + j] &= (byte) (~0x1);
