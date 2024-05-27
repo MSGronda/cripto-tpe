@@ -38,4 +38,48 @@ public class Util {
 
         return resp;
     }
+
+
+    // Por si se encripto
+    public static int getSize(byte[] bytes){
+        int size = 0;
+
+        for(int i=0; i<INT_SIZE; i++){
+            size |= (bytes[i] & 0xFF) << (i * BITS_IN_BYTE);
+        }
+
+        return size;
+    }
+
+    public static byte[] getData(byte[] bytes, int size){
+        byte[] resp = new byte[size];
+
+        System.arraycopy(bytes, INT_SIZE, resp, 0, size);
+
+        return resp;
+    }
+
+    public static String getExtension(byte[] bytes, int size){
+        StringBuilder resp = new StringBuilder();
+
+        byte extractedByte = 1;
+        int offset = INT_SIZE + size;
+        while(extractedByte != 0){
+            extractedByte = 0;
+
+            for (int j = 0; j < BITS_IN_BYTE; j++){
+                extractedByte |= (byte) (bytes[offset] & 0x1);
+                offset++;
+
+                if(j < BITS_IN_BYTE - 1){
+                    extractedByte <<= 1;
+                }
+            }
+            if( extractedByte != 0) {
+                resp.append((char) extractedByte);
+            }
+        }
+
+        return resp.toString();
+    }
 }

@@ -94,7 +94,7 @@ public class Main {
         }
     }
 
-    public static String getExtension(String path){
+    public static String getExtensionFromPath(String path){
         int i = path.lastIndexOf('.');
         if (i > 0) {
             return path.substring(i + 1);
@@ -112,7 +112,7 @@ public class Main {
         if (arguments.isEmbed()) {
             byte[] inFile = Files.readAllBytes(Path.of(arguments.getInFile()));
             int size = inFile.length;
-            String extension = getExtension(arguments.getInFile());
+            String extension = getExtensionFromPath(arguments.getInFile());
 
             BMPFile bmpFile = new BMPFile(Files.readAllBytes(Path.of(arguments.getInBitMapFile())));
 
@@ -140,14 +140,20 @@ public class Main {
 
             byte[] hidden = LSB.obtainFile(bmpFile);
 
+            String extension;
+
             // TODO - revisar encripcion
             if (arguments.getEncryptionAlgorithm() != null){
                 Cipher cipher = createCipher(arguments, false);
                 hidden = cipher.doFinal(hidden);
-                // TODO - Obtener file escondido a partir del descifrado
+
+                // Se obtiene la data de lo descifrado
+                int size = Util.getSize(hidden);
+                hidden = Util.getData(hidden, size);
+                extension = Util.getExtension(hidden, size);
+            } else{
+                extension = LSB.getExtension(bmpFile);
             }
-            // TODO - Esto es solo si no hubo encripcion
-            String extension = LSB.getExtension(bmpFile);
 
             saveBytesToFile(hidden, arguments.getOutFile(), extension);
         }
