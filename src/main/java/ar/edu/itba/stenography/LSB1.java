@@ -2,9 +2,6 @@ package ar.edu.itba.stenography;
 
 import ar.edu.itba.utils.BMPFile;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 import static ar.edu.itba.utils.Util.*;
 
 public class LSB1 {
@@ -12,7 +9,7 @@ public class LSB1 {
     private static final int OFFSET = 1;
 
     public static BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
-        if(inFile.getContentSize() < fileToHide.length * BITS_IN_BYTE + INT_SIZE){
+        if(inFile.getContentSize() < fileToHide.length * BITS_IN_BYTE + INT_BIT_SIZE){
             throw new RuntimeException("No tenes suficiente espacio paaaa");
         }
 
@@ -23,13 +20,13 @@ public class LSB1 {
 
         // Ocultamos el tamaño del archivo
         int size = contentSize;
-        for(int i=INT_SIZE-1; i>=0; i--){                               // Voy de atras para adelante
+        for(int i = INT_BIT_SIZE -1; i>=0; i--){                               // Voy de atras para adelante
             outBytes[outByteOffset + i] &= (byte) (~0x1);
             outBytes[outByteOffset + i] |= (byte) (size & 0x1);
             size >>>= 1;
         }
 
-        outByteOffset += INT_SIZE;
+        outByteOffset += INT_BIT_SIZE;
 
         // Ocultamos contenido del archivo
         for (byte b : fileToHide) {
@@ -57,7 +54,7 @@ public class LSB1 {
         int fileSize = sizeData[FILE_SIZE];
         int inBytesOffset = sizeData[OFFSET];
 
-        if(fileSize > inBytes.length - (BMP_HEADER_SIZE + INT_SIZE)){
+        if(fileSize > inBytes.length - (BMP_HEADER_SIZE + INT_BIT_SIZE)){
             throw new RuntimeException("No dan los numeros");
         }
 
@@ -118,11 +115,11 @@ public class LSB1 {
 
         int fileSize = 0;
 
-        for (int i = 0 ; i < INT_SIZE; i++){
+        for (int i = 0; i < INT_BIT_SIZE; i++){
             fileSize |= (byte) (inBytes[inBytesOffset] & 0x1);
             inBytesOffset++;
 
-            if(i<INT_SIZE-1){
+            if(i< INT_BIT_SIZE -1){
                 fileSize <<= 1;
             }
         }
