@@ -5,7 +5,7 @@ import ar.edu.itba.utils.Util;
 import static ar.edu.itba.utils.Util.*;
 import static ar.edu.itba.utils.Util.BITS_IN_BYTE;
 
-public class LSBImproved {
+public class LSBImproved implements LSBInterface {
     private static final int NUM_PATTERNS = 4;
     private static final byte PATTERN_BITS = 0x6;   // 0000 0110
     private static final int PATTERN_1_IDX = 0;
@@ -26,7 +26,8 @@ public class LSBImproved {
 
     private static final int LSB1_START_OFFSET = BMP_HEADER_SIZE + NUM_PATTERNS;
 
-    public static BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
+    @Override
+    public BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
 
         // Sumamos los NUM_PATTERNS por separado dado que bytesRequired ignora los rojos
         int bytesRequiredToHide = bytesRequired(LSB1_START_OFFSET, fileToHide.length + INT_SIZE) + NUM_PATTERNS;
@@ -57,7 +58,8 @@ public class LSBImproved {
         return outFile;
     }
 
-    public static byte[] obtainFile(BMPFile inFile){
+    @Override
+    public byte[] obtainFile(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
 
         boolean[] inversions = getInversions(inBytes);
@@ -70,6 +72,11 @@ public class LSBImproved {
         // TODO: complete
 
         return outBytes;
+    }
+
+    @Override
+    public String getExtension(BMPFile inFile) {
+        return null;
     }
 
     // = = = = = = = = Auxiliary methods for Obtain = = = = = = = =

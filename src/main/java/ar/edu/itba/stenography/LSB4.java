@@ -5,13 +5,14 @@ import ar.edu.itba.utils.BMPFile;
 import static ar.edu.itba.utils.Util.BITS_IN_BYTE;
 import static ar.edu.itba.utils.Util.BMP_HEADER_SIZE;
 
-public class LSB4 {
+public class LSB4 implements LSBInterface{
     private static final int FILE_SIZE = 0;
     private static final int OFFSET = 1;
     private static final int BITS_TO_HIDE = 4;
     private static final int INT_SIZE = Integer.BYTES * BITS_IN_BYTE / BITS_TO_HIDE; // 4 * 8 / 4 = 8
 
-    public static BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
+    @Override
+    public BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
         if(inFile.getContentSize() < fileToHide.length * BITS_IN_BYTE / BITS_TO_HIDE + INT_SIZE ){
             throw new RuntimeException("No tenes suficiente espacio paaaa");
         }
@@ -47,7 +48,8 @@ public class LSB4 {
         return outFile;
     }
 
-    public static byte[] obtainFile(BMPFile inFile){
+    @Override
+    public byte[] obtainFile(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
 
         int outBytesOffset = 0;
@@ -78,7 +80,8 @@ public class LSB4 {
         return outBytes;
     }
 
-    public static String getExtension(BMPFile inFile){
+    @Override
+    public String getExtension(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
 
         int[] size = getFileSize(inFile);

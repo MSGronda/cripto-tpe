@@ -27,4 +27,15 @@ public class Util {
 
         return resp;
     }
+
+    public static byte[] addSizeInFront(byte[] infile, int size){
+        byte[] resp = new byte[infile.length + INT_SIZE];
+
+        byte[] sizeBytes = intToBytes(size);
+
+        System.arraycopy(sizeBytes, 0, resp, 0, INT_SIZE);
+        System.arraycopy(infile, 0, resp, INT_SIZE, infile.length);
+
+        return resp;
+    }
 }
