@@ -64,48 +64,16 @@ public class LSBImproved implements LSBInterface {
 
         boolean[] inversions = getInversions(inBytes);
 
-        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, bytesRequired(LSB1_START_OFFSET, INT_SIZE));
-
-        byte[] outBytes = new byte[fileSize];
-
-
-        // TODO: complete
-
-        return outBytes;
+        return obtainLSB1IgnoringRedWithInversions(inBytes, inversions);    // La verdad no me gusto como quedo modularizado pero bueno
     }
 
     @Override
     public String getExtension(BMPFile inFile) {
+        // TODO: complete
         return null;
     }
 
     // = = = = = = = = Auxiliary methods for Obtain = = = = = = = =
-
-    private static int getFileSize(byte[] inBytes, int from, int to){
-
-        int fileSize = 0;
-
-        int pos = byteColor(to - 1);
-        for (int i = to - 1; i >= from; ){
-            fileSize |= (byte) (inBytes[i] & 0x1);
-
-            if(i < INT_BIT_SIZE -1){
-                fileSize <<= 1;
-            }
-            if(pos == GREEN_BYTE){
-                i--;
-                pos = BLUE_BYTE;
-            }
-            else if(pos == BLUE_BYTE){
-                i -= 2;             // Skipeo el rojo
-                pos = GREEN_BYTE;
-            }
-            else{
-                throw new RuntimeException("Esto no deberia ocurrir!");
-            }
-        }
-        return fileSize;
-    }
     private static boolean[] getInversions(byte[] inBytes) {
         boolean[] inversions = new boolean[NUM_PATTERNS];
 
@@ -119,6 +87,18 @@ public class LSBImproved implements LSBInterface {
     }
 
     // = = = = = = = = Auxiliary methods for Hide = = = = = = = =
+
+    private static int getPatternIdx(byte inByte){
+        byte patternBits = (byte) (inByte & PATTERN_BITS);
+
+        return switch (patternBits){
+            case PATTERN_1 -> PATTERN_1_IDX;
+            case PATTERN_2 -> PATTERN_2_IDX;
+            case PATTERN_3 -> PATTERN_3_IDX;
+            case PATTERN_4 -> PATTERN_4_IDX;
+            default -> throw new RuntimeException("No deberia ocurrir esto!");
+        };
+    }
 
     private static void storeInversionBits(byte[] outBytes, boolean[] inversion){
         for(int i=0; i<NUM_PATTERNS; i++){
@@ -141,16 +121,16 @@ public class LSBImproved implements LSBInterface {
         byte pos = byteColor(to - 1);
 
         for(int i = to - 1; i>=from; ){
-            byte patternBits = (byte) (outBytes[i] & PATTERN_BITS);
 
-            switch (patternBits){
-                case PATTERN_1 -> invertBit(outBytes, i, inversions[PATTERN_1_IDX]);
-                case PATTERN_2 -> invertBit(outBytes, i, inversions[PATTERN_2_IDX]);
-                case PATTERN_3 -> invertBit(outBytes, i, inversions[PATTERN_3_IDX]);
-                case PATTERN_4 -> invertBit(outBytes, i, inversions[PATTERN_4_IDX]);
-                default -> throw new RuntimeException("No deberia ocurrir esto!");
+            // Invertimos el bit si es necesario
+            if(inversions[getPatternIdx(outBytes[i])]){
+                byte b = outBytes[i];
+                outBytes[i] &= (byte) (~0x1);
+                outBytes[i] |= (byte) (b & 0x1);
             }
 
+
+            // Pasamos al proximo byte valido
             if(pos == GREEN_BYTE){
                 i--;
                 pos = BLUE_BYTE;
@@ -165,50 +145,25 @@ public class LSBImproved implements LSBInterface {
 
         }
     }
-    private static void invertBit(byte[] outBytes, int i, boolean invert){
-        if(invert){
-            byte b = outBytes[i];
-            outBytes[i] &= (byte) (~0x1);
-            outBytes[i] |= (byte) (b & 0x1);
-        }
-    }
 
     private static int[] countBitsChanged(byte[] inBytes, byte[] outBytes, int from, int to){
         int[] bitChanged = new int[NUM_PATTERNS];
         for(int i=from; i<to; i++){
-            byte patternBits = (byte) (inBytes[i] & PATTERN_BITS);
 
-            switch (patternBits) {
-                case PATTERN_1 -> checkBitChanged(inBytes, outBytes, i, bitChanged, PATTERN_1_IDX);
-                case PATTERN_2 -> checkBitChanged(inBytes, outBytes, i, bitChanged, PATTERN_2_IDX);
-                case PATTERN_3 -> checkBitChanged(inBytes, outBytes, i, bitChanged, PATTERN_3_IDX);
-                case PATTERN_4 -> checkBitChanged(inBytes, outBytes, i, bitChanged, PATTERN_4_IDX);
-                default -> throw new RuntimeException("No deberia ocurrir esto!");
+            // Nos fijamos si cambio el bit. Si es el caso, sumamos otra ocurrencia para ese patron
+            if((inBytes[i] & 0x1) != (outBytes[i] & 0x1)){
+                bitChanged[getPatternIdx(inBytes[i])]++;
             }
         }
         return bitChanged;
     }
-    private static void checkBitChanged(byte[] inBytes, byte[] outBytes, int i, int[] bitChanged, int patternPos) {
-        if((inBytes[i] & 0x1) != (outBytes[i] & 0x1)){
-            bitChanged[patternPos]++;
-        }
-    }
-
     private static int[] countPatternOccurrences(byte[] inBytes, int from, int to){
         int[] patternOccurrences = new int[NUM_PATTERNS];
 
         byte pos = byteColor(to - 1);
 
         for(int i = to - 1; i>=from; ){
-            byte patternBits = (byte) (inBytes[i] & PATTERN_BITS);
-
-            switch (patternBits) {
-                case PATTERN_1 -> patternOccurrences[PATTERN_1_IDX]++;
-                case PATTERN_2 -> patternOccurrences[PATTERN_2_IDX]++;
-                case PATTERN_3 -> patternOccurrences[PATTERN_3_IDX]++;
-                case PATTERN_4 -> patternOccurrences[PATTERN_4_IDX]++;
-                default -> throw new RuntimeException("No deberia ocurrir esto!");
-            }
+            patternOccurrences[getPatternIdx(inBytes[i])]++;
 
             if(pos == GREEN_BYTE){
                 i--;
@@ -296,4 +251,86 @@ public class LSBImproved implements LSBInterface {
 
         return bytesRequired;
     }
+
+    private static byte[] obtainLSB1IgnoringRedWithInversions(byte[] inBytes, boolean[] inversions){
+        // Obtenemos el tamaño
+        int fileSizeOffset = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
+        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, fileSizeOffset);
+
+        if(inBytes.length < bytesRequired(LSB1_START_OFFSET + INT_SIZE, fileSize)){
+            throw new RuntimeException("No tenes suficiente espacio paaaa");
+        }
+
+        byte[] outBytes = new byte[fileSize];
+        int inBytesOffset = LSB1_START_OFFSET + fileSizeOffset;
+
+        // Obtenemos el color inicial del cursor (y si es rojo, pasamos a un color valido)
+        int pos = byteColor(inBytesOffset);
+        if(pos == RED_BYTE){
+            pos = BLUE_BYTE;
+            inBytesOffset++;
+        }
+
+        // Extraemos los bytes
+        for(int outBytesOffset=0; outBytesOffset<fileSize; outBytesOffset++){
+            byte extractedByte = 0;
+
+            for(int j=0; j < BITS_IN_BYTE; j++){
+
+                // Extraemos el byte, aplicando la inversion cuando sea necesaria
+                byte inByte = inBytes[inBytesOffset];
+                extractedByte |= inversions[getPatternIdx(inByte)] ? (byte) (~(inByte & 0x1)) : (byte) (inByte & 0x1);
+
+                if(j < BITS_IN_BYTE - 1){
+                    extractedByte <<= 1;
+                }
+
+                // Pasamos al proximo byte de azul/verde
+                if(pos == BLUE_BYTE){
+                    pos = GREEN_BYTE;
+                    inBytesOffset++;
+                }
+                else if(pos == GREEN_BYTE){
+                    pos = BLUE_BYTE;
+                    inBytesOffset += 2;
+                }
+                else{
+                    throw new RuntimeException("Esto no deberia ocurrir!");
+                }
+            }
+
+            outBytes[outBytesOffset] = extractedByte;
+            outBytesOffset++;
+        }
+
+        return outBytes;
+    }
+
+    private static int getFileSize(byte[] inBytes, int from, int to){
+
+        int fileSize = 0;
+
+        int pos = byteColor(to - 1);
+        for (int i = to - 1; i >= from; ){
+            fileSize |= (byte) (inBytes[i] & 0x1);
+
+            if(i < INT_BIT_SIZE -1){
+                fileSize <<= 1;
+            }
+
+            if(pos == GREEN_BYTE){
+                i--;
+                pos = BLUE_BYTE;
+            }
+            else if(pos == BLUE_BYTE){
+                i -= 2;             // Skipeo el rojo
+                pos = GREEN_BYTE;
+            }
+            else{
+                throw new RuntimeException("Esto no deberia ocurrir!");
+            }
+        }
+        return fileSize;
+    }
+
 }
