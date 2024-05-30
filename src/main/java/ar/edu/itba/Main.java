@@ -21,6 +21,8 @@ import static java.util.Arrays.copyOf;
 
 public class Main {
 
+    private static final int ITERATION_COUNT = 10000;
+
     public static Cipher createCipher(Arguments arguments, Boolean encryptMode) throws Exception {
         String encryptionAlgorithm = arguments.getEncryptionAlgorithm();
         String mode = arguments.getMode();
@@ -49,11 +51,13 @@ public class Main {
                 throw new IllegalArgumentException("Invalid encryption algorithm");
         }
 
-//        SecretKey secretKey = generateSecretKey(password, keyAlgorithm, keySize);
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        byte[] salt = new byte[]{0,0};
-        KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt, 1);
-        SecretKey secretKey = new SecretKeySpec(factory.generateSecret(keySpec).getEncoded(), keyAlgorithm);
+        byte[] salt = new byte[]{0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt, ITERATION_COUNT, keySize);
+        SecretKey tmp = factory.generateSecret(keySpec);
+        byte[] keyBytes = tmp.getEncoded();
+
+        SecretKey secretKey = new SecretKeySpec(keyBytes, keyAlgorithm);
 
         String transformation = String.format("%s/%s/PKCS5Padding", keyAlgorithm, mode.toUpperCase());
         Cipher cipher = Cipher.getInstance(transformation);
