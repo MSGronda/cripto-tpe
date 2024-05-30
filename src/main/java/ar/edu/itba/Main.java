@@ -8,6 +8,7 @@ import ar.edu.itba.utils.BMPFile;
 import ar.edu.itba.utils.Parser;
 import ar.edu.itba.utils.Util;
 import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
@@ -18,6 +19,7 @@ import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.KeySpec;
 import static java.util.Arrays.copyOf;
+import static java.util.Arrays.copyOfRange;
 
 public class Main {
 
@@ -50,39 +52,30 @@ public class Main {
             default:
                 throw new IllegalArgumentException("Invalid encryption algorithm");
         }
+        int ivSize = 16;
+        int totalKeyMaterialLength = keySize + (ivSize * 8);
 
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
         byte[] salt = new byte[]{0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt, ITERATION_COUNT, keySize);
+        KeySpec keySpec = new PBEKeySpec(password.toCharArray(), salt, ITERATION_COUNT, totalKeyMaterialLength);
         SecretKey tmp = factory.generateSecret(keySpec);
-        byte[] keyBytes = tmp.getEncoded();
+        byte[] keyTotal = tmp.getEncoded();
+
+        byte[] keyBytes = copyOf(keyTotal, keySize / 8);
+        byte[] iv = copyOfRange(keyTotal, keySize / 8, keyTotal.length);
 
         SecretKey secretKey = new SecretKeySpec(keyBytes, keyAlgorithm);
+        IvParameterSpec IV = new IvParameterSpec(iv);
 
         String transformation = String.format("%s/%s/PKCS5Padding", keyAlgorithm, mode.toUpperCase());
         Cipher cipher = Cipher.getInstance(transformation);
 
         if (encryptMode){
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, IV);
         } else {
-            cipher.init(Cipher.DECRYPT_MODE, secretKey);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, IV);
         }
         return cipher;
-    }
-
-    private static SecretKeySpec generateSecretKey(String password, String algorithm, int keySize) throws NoSuchAlgorithmException {
-        MessageDigest sha = MessageDigest.getInstance("SHA-256");
-        byte[] key = sha.digest(password.getBytes());
-
-        if (keySize == 128) {
-            key = copyOf(key, 16);
-        } else if (keySize == 192) {
-            key = copyOf(key, 24);
-        } else if (keySize == 56) {
-            key = copyOf(key, 8);
-        }
-
-        return new SecretKeySpec(key, algorithm);
     }
 
     private static LSBInterface getLSB(Arguments arguments){
