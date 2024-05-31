@@ -28,24 +28,23 @@ public class LSBImproved implements LSBInterface {
 
     @Override
     public BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
+        int bytesRequiredLSB1 = bytesRequired(LSB1_START_OFFSET, fileToHide.length + INT_SIZE);
 
-        // Sumamos los NUM_PATTERNS por separado dado que bytesRequired ignora los rojos
-        int bytesRequiredToHide = bytesRequired(LSB1_START_OFFSET, fileToHide.length + INT_SIZE) + NUM_PATTERNS;
-
-        if(inFile.getContentSize() < bytesRequiredToHide){
+        // Sumamos los NUM_PATTERNS por separado dado que bytesRequired no tiene en cuenta los inversionBits
+        if(inFile.getContentSize() < bytesRequiredLSB1 + NUM_PATTERNS){
             throw new RuntimeException("No tenes suficiente espacio paaaa");
         }
 
         byte[] inBytes = inFile.getBytes();
 
         // Conseguimos las ocurrencias iniciales de los patrones
-        int[] patternOccurrences = countPatternOccurrences(inBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
+        int[] patternOccurrences = countPatternOccurrences(inBytes, LSB1_START_OFFSET, bytesRequiredLSB1);
 
         BMPFile outFile = hideLSB1IgnoringRed(inFile, LSB1_START_OFFSET,  fileToHide, contentSize);
         byte[] outBytes = outFile.getBytes();
 
         // Contamos la cantidad de veces (para cada patron) que cambio el ultimo bit
-        int[] bitChanged = countBitsChanged(inBytes, outBytes, LSB1_START_OFFSET, bytesRequiredToHide - NUM_PATTERNS); // Solo tenemos en cuenta los bytes afectados por el LSB1
+        int[] bitChanged = countBitsChanged(inBytes, outBytes, LSB1_START_OFFSET, bytesRequiredLSB1);
 
         // Decidimos cuales de los patrones deberian invertirse y cuales no
         boolean[] inversions = calculateInversions(patternOccurrences, bitChanged);
@@ -53,7 +52,7 @@ public class LSBImproved implements LSBInterface {
         storeInversionBits(outBytes, inversions);
 
         // Invertimos solo los bits que tienen que ser invertidos (dentro del rango de bits invertidos)
-        invertBits(outBytes, LSB1_START_OFFSET, bytesRequiredToHide, inversions);
+        invertBits(outBytes, LSB1_START_OFFSET, bytesRequiredLSB1, inversions);
 
         return outFile;
     }
@@ -117,26 +116,25 @@ public class LSBImproved implements LSBInterface {
         return inversions;
     }
 
-    private static void invertBits(byte[] outBytes, int from, int to, boolean[] inversions){
-        byte pos = byteColor(to - 1);
+    private static void invertBits(byte[] outBytes, int from, int size, boolean[] inversions){
+        byte pos = byteColor(from);
 
-        for(int i = to - 1; i>=from; ){
+        for(int i = from; i < from + size; ){
 
             // Invertimos el bit si es necesario
             if(inversions[getPatternIdx(outBytes[i])]){
                 byte b = outBytes[i];
                 outBytes[i] &= (byte) (~0x1);
-                outBytes[i] |= (byte) (b & 0x1);
+                outBytes[i] |= (byte) (1 - (b & 0x1));
             }
-
 
             // Pasamos al proximo byte valido
             if(pos == GREEN_BYTE){
-                i--;
+                i += 2;
                 pos = BLUE_BYTE;
             }
             else if(pos == BLUE_BYTE){
-                i -= 2;             // Skipeo el rojo
+                i++;             // Skipeo el rojo
                 pos = GREEN_BYTE;
             }
             else{
@@ -146,9 +144,9 @@ public class LSBImproved implements LSBInterface {
         }
     }
 
-    private static int[] countBitsChanged(byte[] inBytes, byte[] outBytes, int from, int to){
+    private static int[] countBitsChanged(byte[] inBytes, byte[] outBytes, int from, int size){
         int[] bitChanged = new int[NUM_PATTERNS];
-        for(int i=from; i<to; i++){
+        for(int i=from; i<from + size; i++){
 
             // Nos fijamos si cambio el bit. Si es el caso, sumamos otra ocurrencia para ese patron
             if((inBytes[i] & 0x1) != (outBytes[i] & 0x1)){
@@ -157,12 +155,12 @@ public class LSBImproved implements LSBInterface {
         }
         return bitChanged;
     }
-    private static int[] countPatternOccurrences(byte[] inBytes, int from, int to){
+    private static int[] countPatternOccurrences(byte[] inBytes, int from, int size){
         int[] patternOccurrences = new int[NUM_PATTERNS];
 
-        byte pos = byteColor(to - 1);
+        byte pos = byteColor(from + size - 1);
 
-        for(int i = to - 1; i>=from; ){
+        for(int i = from + size - 1; i>=from; ){
             patternOccurrences[getPatternIdx(inBytes[i])]++;
 
             if(pos == GREEN_BYTE){
@@ -255,21 +253,18 @@ public class LSBImproved implements LSBInterface {
     private static byte[] obtainLSB1IgnoringRedWithInversions(byte[] inBytes, boolean[] inversions){
         // Obtenemos el tamaño
         int fileSizeOffset = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
-        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, fileSizeOffset);
+        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, fileSizeOffset, inversions);
 
         if(inBytes.length < bytesRequired(LSB1_START_OFFSET + INT_SIZE, fileSize)){
             throw new RuntimeException("No tenes suficiente espacio paaaa");
         }
 
         byte[] outBytes = new byte[fileSize];
-        int inBytesOffset = LSB1_START_OFFSET + fileSizeOffset;
 
         // Obtenemos el color inicial del cursor (y si es rojo, pasamos a un color valido)
-        int pos = byteColor(inBytesOffset);
-        if(pos == RED_BYTE){
-            pos = BLUE_BYTE;
-            inBytesOffset++;
-        }
+        int[] firstNonRed = getFirstNonRedPos(LSB1_START_OFFSET + fileSizeOffset);
+        int pos = firstNonRed[POS];
+        int inBytesOffset = firstNonRed[IDX];
 
         // Extraemos los bytes
         for(int outBytesOffset=0; outBytesOffset<fileSize; outBytesOffset++){
@@ -279,7 +274,7 @@ public class LSBImproved implements LSBInterface {
 
                 // Extraemos el byte, aplicando la inversion cuando sea necesaria
                 byte inByte = inBytes[inBytesOffset];
-                extractedByte |= inversions[getPatternIdx(inByte)] ? (byte) (~(inByte & 0x1)) : (byte) (inByte & 0x1);
+                extractedByte |= inversions[getPatternIdx(inByte)] ? (byte) (1 - (inByte & 0x1)) : (byte) (inByte & 0x1);
 
                 if(j < BITS_IN_BYTE - 1){
                     extractedByte <<= 1;
@@ -300,30 +295,32 @@ public class LSBImproved implements LSBInterface {
             }
 
             outBytes[outBytesOffset] = extractedByte;
-            outBytesOffset++;
         }
 
         return outBytes;
     }
 
-    private static int getFileSize(byte[] inBytes, int from, int to){
+    private static int getFileSize(byte[] inBytes, int from, int size, boolean[] inversions){
 
         int fileSize = 0;
 
-        int pos = byteColor(to - 1);
-        for (int i = to - 1; i >= from; ){
-            fileSize |= (byte) (inBytes[i] & 0x1);
+        int pos = byteColor(from);  // Siempre empieza en un green, pero bueno, mejor ser cuidadosos
 
-            if(i < INT_BIT_SIZE -1){
+        for (int i = from; i < from + size; ){
+            byte inByte = inBytes[i];
+            byte inBit = inversions[getPatternIdx(inByte)] ? (byte) (1 - (inByte & 0x1)) : (byte) (inByte & 0x1);
+            fileSize |= inBit;
+
+            if(i < from + size - 1){
                 fileSize <<= 1;
             }
 
             if(pos == GREEN_BYTE){
-                i--;
+                i += 2;            // Skipeo el rojo
                 pos = BLUE_BYTE;
             }
             else if(pos == BLUE_BYTE){
-                i -= 2;             // Skipeo el rojo
+                i++;
                 pos = GREEN_BYTE;
             }
             else{
@@ -331,6 +328,17 @@ public class LSBImproved implements LSBInterface {
             }
         }
         return fileSize;
+    }
+
+    private static final int POS = 0;
+    private static final int IDX = 1;
+    private static int[] getFirstNonRedPos(int idx){
+        int pos = byteColor(idx);
+        if(pos == RED_BYTE){
+            pos = BLUE_BYTE;
+            idx++;
+        }
+        return new int[]{pos, idx};
     }
 
 }

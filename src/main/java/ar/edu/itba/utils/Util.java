@@ -21,7 +21,7 @@ public class Util {
         byte[] resp = new byte[INT_SIZE];
 
         for(int i=0; i<INT_SIZE; i++){
-            resp[i] =  (byte) (value & 0xFF);
+            resp[INT_SIZE - i - 1] =  (byte) (value & 0xFF);
             value >>= BITS_IN_BYTE;
         }
 
