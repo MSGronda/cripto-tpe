@@ -16,8 +16,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.*;
 import java.security.spec.KeySpec;
+import java.util.Arrays;
+
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 
@@ -46,7 +47,7 @@ public class Main {
                 keySize = 256;
                 break;
             case "des":
-                keyAlgorithm = "DES";
+                keyAlgorithm = "TripleDES";
                 keySize = 56;
                 break;
             default:
@@ -67,7 +68,8 @@ public class Main {
         SecretKey secretKey = new SecretKeySpec(keyBytes, keyAlgorithm);
         IvParameterSpec IV = new IvParameterSpec(iv);
 
-        String transformation = String.format("%s/%s/PKCS5Padding", keyAlgorithm, mode.toUpperCase());
+//        String transformation = String.format("%s/%s/PKCS5Padding", keyAlgorithm, mode.toUpperCase());
+        String transformation = String.format("%s/%s/NoPadding", keyAlgorithm, mode.toUpperCase());
         Cipher cipher = Cipher.getInstance(transformation);
 
         if (encryptMode){
@@ -146,8 +148,8 @@ public class Main {
 
                 // Se obtiene la data de lo descifrado
                 int size = Util.getSize(hidden);
-                hidden = Util.getData(hidden, size);
                 extension = Util.getExtension(hidden, size);
+                hidden = Util.getData(hidden, size);
             } else{
                 extension = LSB.getExtension(bmpFile);
             }
@@ -158,7 +160,7 @@ public class Main {
 
     public static void saveBytesToFile(byte[] bytes, String fileName, String fileExtension) throws IOException {
         // Construct the file path with the specified extension
-        String filePath = fileName + "." + fileExtension;
+        String filePath = fileName + fileExtension;
         File file = new File(filePath);
 
         // Write the byte array to the file

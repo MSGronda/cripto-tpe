@@ -45,7 +45,10 @@ public class Util {
         int size = 0;
 
         for(int i=0; i<INT_SIZE; i++){
-            size |= (bytes[i] & 0xFF) << (i * BITS_IN_BYTE);
+            size |= (bytes[i] & 0xFF);
+            if(i < INT_SIZE - 1){
+                size <<= BITS_IN_BYTE;
+            }
         }
 
         return size;
@@ -64,17 +67,8 @@ public class Util {
 
         byte extractedByte = 1;
         int offset = INT_SIZE + size;
-        while(extractedByte != 0){
-            extractedByte = 0;
-
-            for (int j = 0; j < BITS_IN_BYTE; j++){
-                extractedByte |= (byte) (bytes[offset] & 0x1);
-                offset++;
-
-                if(j < BITS_IN_BYTE - 1){
-                    extractedByte <<= 1;
-                }
-            }
+        while(extractedByte != 0 && offset < bytes.length){
+            extractedByte = bytes[offset++];
             if( extractedByte != 0) {
                 resp.append((char) extractedByte);
             }
