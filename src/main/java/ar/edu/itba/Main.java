@@ -96,7 +96,7 @@ public class Main {
     public static String getExtensionFromPath(String path){
         int i = path.lastIndexOf('.');
         if (i > 0) {
-            return path.substring(i + 1);
+            return path.substring(i);
         }
         return "";
     }
