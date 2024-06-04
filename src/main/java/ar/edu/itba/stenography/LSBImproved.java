@@ -26,6 +26,9 @@ public class LSBImproved implements LSBInterface {
 
     private static final int LSB1_START_OFFSET = BMP_HEADER_SIZE + NUM_PATTERNS;
 
+    private static final int POSITION_DATA_OFFSET = 0;
+    private static final int POSITION_DATA_COLOR = 1;
+
     @Override
     public BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
         int bytesRequiredLSB1 = bytesRequired(LSB1_START_OFFSET, fileToHide.length + INT_SIZE);
@@ -68,8 +71,25 @@ public class LSBImproved implements LSBInterface {
 
     @Override
     public String getExtension(BMPFile inFile) {
-        // TODO: complete
-        return null;
+        byte[] inBytes = inFile.getBytes();
+
+        boolean[] inversions = getInversions(inBytes);
+
+        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, inversions);
+
+        int fileSizeBytes = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
+        int[] positionData = getFirstNonRedPos(LSB1_START_OFFSET + bytesRequired(LSB1_START_OFFSET, INT_SIZE) + bytesRequired(LSB1_START_OFFSET + fileSizeBytes, fileSize));
+
+        byte extractedByte = 1;
+        StringBuilder builder = new StringBuilder();
+        while(positionData[POSITION_DATA_OFFSET] < inBytes.length && extractedByte != 0){
+            extractedByte = extractByte(inBytes, inversions, positionData);
+            if(extractedByte != 0){
+                builder.append((char) extractedByte);
+            }
+        }
+
+        return builder.toString();
     }
 
     // = = = = = = = = Auxiliary methods for Obtain = = = = = = = =
@@ -250,95 +270,87 @@ public class LSBImproved implements LSBInterface {
         return bytesRequired;
     }
 
-    private static byte[] obtainLSB1IgnoringRedWithInversions(byte[] inBytes, boolean[] inversions){
+   private static byte[] obtainLSB1IgnoringRedWithInversions(byte[] inBytes, boolean[] inversions){
         // Obtenemos el tamaño
-        int fileSizeOffset = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
-        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, fileSizeOffset, inversions);
+        int intSize = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
+        int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, inversions);
 
-        if(inBytes.length < bytesRequired(LSB1_START_OFFSET + INT_SIZE, fileSize)){
+        if(inBytes.length < bytesRequired(LSB1_START_OFFSET + intSize, fileSize)){
             throw new RuntimeException("No tenes suficiente espacio paaaa");
         }
 
         byte[] outBytes = new byte[fileSize];
 
         // Obtenemos el color inicial del cursor (y si es rojo, pasamos a un color valido)
-        int[] firstNonRed = getFirstNonRedPos(LSB1_START_OFFSET + fileSizeOffset);
-        int pos = firstNonRed[POS];
-        int inBytesOffset = firstNonRed[IDX];
+        int[] positionalData = getFirstNonRedPos(LSB1_START_OFFSET + intSize);
 
         // Extraemos los bytes
-        for(int outBytesOffset=0; outBytesOffset<fileSize; outBytesOffset++){
-            byte extractedByte = 0;
-
-            for(int j=0; j < BITS_IN_BYTE; j++){
-
-                // Extraemos el byte, aplicando la inversion cuando sea necesaria
-                byte inByte = inBytes[inBytesOffset];
-                extractedByte |= inversions[getPatternIdx(inByte)] ? (byte) (1 - (inByte & 0x1)) : (byte) (inByte & 0x1);
-
-                if(j < BITS_IN_BYTE - 1){
-                    extractedByte <<= 1;
-                }
-
-                // Pasamos al proximo byte de azul/verde
-                if(pos == BLUE_BYTE){
-                    pos = GREEN_BYTE;
-                    inBytesOffset++;
-                }
-                else if(pos == GREEN_BYTE){
-                    pos = BLUE_BYTE;
-                    inBytesOffset += 2;
-                }
-                else{
-                    throw new RuntimeException("Esto no deberia ocurrir!");
-                }
-            }
-
-            outBytes[outBytesOffset] = extractedByte;
+        for(int outBytesOffset = 0; outBytesOffset<fileSize; outBytesOffset++){
+            outBytes[outBytesOffset] = extractByte(inBytes, inversions, positionalData);
         }
 
         return outBytes;
     }
+    private static byte extractByte(byte[] inBytes, boolean[] inversions, int[] positional){
+        // Obtenemos los valores de las posiciones
+        int inBytesOffset = positional[POSITION_DATA_OFFSET];
+        int pos = positional[POSITION_DATA_COLOR];
 
-    private static int getFileSize(byte[] inBytes, int from, int size, boolean[] inversions){
+        byte extractedByte = 0;
+        for(int j=0; j < BITS_IN_BYTE; j++){
 
-        int fileSize = 0;
+            // Extraemos el byte, aplicando la inversion cuando sea necesaria
+            byte inByte = inBytes[inBytesOffset];
+            extractedByte |= inversions[getPatternIdx(inByte)] ? (byte) (1 - (inByte & 0x1)) : (byte) (inByte & 0x1);
 
-        int pos = byteColor(from);  // Siempre empieza en un green, pero bueno, mejor ser cuidadosos
-
-        for (int i = from; i < from + size; ){
-            byte inByte = inBytes[i];
-            byte inBit = inversions[getPatternIdx(inByte)] ? (byte) (1 - (inByte & 0x1)) : (byte) (inByte & 0x1);
-            fileSize |= inBit;
-
-            if(i < from + size - 1){
-                fileSize <<= 1;
+            if(j < BITS_IN_BYTE - 1){
+                extractedByte <<= 1;
             }
 
-            if(pos == GREEN_BYTE){
-                i += 2;            // Skipeo el rojo
-                pos = BLUE_BYTE;
-            }
-            else if(pos == BLUE_BYTE){
-                i++;
+            // Pasamos al proximo byte de azul/verde
+            if(pos == BLUE_BYTE){
                 pos = GREEN_BYTE;
+                inBytesOffset++;
+            }
+            else if(pos == GREEN_BYTE){
+                pos = BLUE_BYTE;
+                inBytesOffset += 2;
             }
             else{
                 throw new RuntimeException("Esto no deberia ocurrir!");
             }
         }
+
+        // Actualizamos los valores de las posiciones (dado que Java es mala onda y no permite pasar referencias)
+        positional[POSITION_DATA_OFFSET] = inBytesOffset;
+        positional[POSITION_DATA_COLOR] = pos;
+
+        return extractedByte;
+    }
+
+    private static int getFileSize(byte[] inBytes, int from, boolean[] inversions){
+
+        int fileSize = 0;
+
+        int[] positionData = new int[]{from, byteColor(from)};  // Siempre empieza en un green
+
+        for (int i = 0; i < INT_SIZE; i++){
+            fileSize |= extractByte(inBytes, inversions, positionData);
+
+            if(i < INT_SIZE - 1){
+                fileSize <<= 1;
+            }
+        }
         return fileSize;
     }
 
-    private static final int POS = 0;
-    private static final int IDX = 1;
     private static int[] getFirstNonRedPos(int idx){
         int pos = byteColor(idx);
         if(pos == RED_BYTE){
             pos = BLUE_BYTE;
             idx++;
         }
-        return new int[]{pos, idx};
+        return new int[]{idx, pos};
     }
 
 }
