@@ -2,8 +2,7 @@ package ar.edu.itba.stenography;
 
 import ar.edu.itba.utils.BMPFile;
 
-import static ar.edu.itba.utils.Util.BITS_IN_BYTE;
-import static ar.edu.itba.utils.Util.BMP_HEADER_SIZE;
+import static ar.edu.itba.utils.Util.*;
 
 public class LSB4 implements LSBInterface{
     private static final int FILE_SIZE = 0;
@@ -58,6 +57,10 @@ public class LSB4 implements LSBInterface{
         int[] sizeData = getFileSize(inFile);
         int fileSize = sizeData[FILE_SIZE];
         int inBytesOffset = sizeData[OFFSET];
+
+        if(fileSize > (inBytes.length - (BMP_HEADER_SIZE + INT_BIT_SIZE)) / BITS_TO_HIDE || fileSize <= 0) {
+            throw new RuntimeException("Tamaño invalido de archivo (" + fileSize + ")");
+        }
 
         byte[] outBytes = new byte[fileSize];
 

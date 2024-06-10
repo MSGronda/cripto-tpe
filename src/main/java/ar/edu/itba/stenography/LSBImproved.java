@@ -77,13 +77,17 @@ public class LSBImproved implements LSBInterface {
 
         int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, inversions);
 
+        if(fileSize < 0){
+            throw new RuntimeException("Tamaño invalido de archivo (" + fileSize + ")");
+        }
+
         int fileSizeBytes = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
         int[] positionData = getFirstNonRedPos(LSB1_START_OFFSET + bytesRequired(LSB1_START_OFFSET, INT_SIZE) + bytesRequired(LSB1_START_OFFSET + fileSizeBytes, fileSize));
 
         byte extractedByte = 1;
         StringBuilder builder = new StringBuilder();
         while(positionData[POSITION_DATA_OFFSET] < inBytes.length && extractedByte != 0){
-            extractedByte = extractByte(inBytes, inversions, positionData);
+            extractedByte = (byte )extractByte(inBytes, inversions, positionData);
             if(extractedByte != 0){
                 builder.append((char) extractedByte);
             }
@@ -275,8 +279,8 @@ public class LSBImproved implements LSBInterface {
         int intSize = bytesRequired(LSB1_START_OFFSET, INT_SIZE);
         int fileSize = getFileSize(inBytes, LSB1_START_OFFSET, inversions);
 
-        if(inBytes.length < bytesRequired(LSB1_START_OFFSET + intSize, fileSize)){
-            throw new RuntimeException("No tenes suficiente espacio paaaa");
+        if(inBytes.length < bytesRequired(LSB1_START_OFFSET + intSize, fileSize) || fileSize <= 0){
+            throw new RuntimeException("Tamaño invalido de archivo (" + fileSize + ")");
         }
 
         byte[] outBytes = new byte[fileSize];
@@ -286,17 +290,19 @@ public class LSBImproved implements LSBInterface {
 
         // Extraemos los bytes
         for(int outBytesOffset = 0; outBytesOffset<fileSize; outBytesOffset++){
-            outBytes[outBytesOffset] = extractByte(inBytes, inversions, positionalData);
+            outBytes[outBytesOffset] = (byte) extractByte(inBytes, inversions, positionalData);
         }
 
         return outBytes;
     }
-    private static byte extractByte(byte[] inBytes, boolean[] inversions, int[] positional){
+    private static int extractByte(byte[] inBytes, boolean[] inversions, int[] positional){
+        // Retorna un int porque java no reconoce unsigned bytes
+
         // Obtenemos los valores de las posiciones
         int inBytesOffset = positional[POSITION_DATA_OFFSET];
         int pos = positional[POSITION_DATA_COLOR];
 
-        byte extractedByte = 0;
+        int extractedByte = 0;
         for(int j=0; j < BITS_IN_BYTE; j++){
 
             // Extraemos el byte, aplicando la inversion cuando sea necesaria
@@ -338,7 +344,7 @@ public class LSBImproved implements LSBInterface {
             fileSize |= extractByte(inBytes, inversions, positionData);
 
             if(i < INT_SIZE - 1){
-                fileSize <<= 1;
+                fileSize <<= BITS_IN_BYTE;
             }
         }
         return fileSize;

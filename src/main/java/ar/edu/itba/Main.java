@@ -17,8 +17,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.spec.KeySpec;
-import java.util.Arrays;
-
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.copyOfRange;
 
