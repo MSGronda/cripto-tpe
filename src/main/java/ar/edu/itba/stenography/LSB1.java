@@ -56,7 +56,7 @@ public class LSB1 implements LSBInterface{
         int fileSize = sizeData[FILE_SIZE];
         int inBytesOffset = sizeData[OFFSET];
 
-        if(fileSize > inBytes.length - (BMP_HEADER_SIZE + INT_BIT_SIZE) || fileSize <= 0) {
+        if(BITS_IN_BYTE * fileSize > inBytes.length - (BMP_HEADER_SIZE + INT_BIT_SIZE) || fileSize <= 0) {
             throw new RuntimeException("Tamaño invalido de archivo (" + fileSize + ")");
         }
 
