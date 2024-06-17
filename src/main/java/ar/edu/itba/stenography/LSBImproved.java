@@ -24,21 +24,31 @@ public class LSBImproved implements LSBInterface {
     private static final byte GREEN_BYTE = 1;
     private static final byte RED_BYTE = 2;
 
-    private static final int LSB1_START_OFFSET = BMP_HEADER_SIZE + NUM_PATTERNS;
-
     private static final int POSITION_DATA_OFFSET = 0;
     private static final int POSITION_DATA_COLOR = 1;
 
+    private static int BMP_HEADER_SIZE = 54;                                // Valor default que se puede reemplazar
+    private static int LSB1_START_OFFSET = BMP_HEADER_SIZE + NUM_PATTERNS;  // Valor default que se puede reemplazar
+
+    public static void setupHeaderSizes(byte[] inBytes){
+        // Para no aniquilar la performance y no tener que pasar 1001 parametros a las funciones,
+        // directamente usamos variables estaticas para esto.
+
+        BMP_HEADER_SIZE = getPixelStartOffset(inBytes);
+        LSB1_START_OFFSET = BMP_HEADER_SIZE + NUM_PATTERNS;
+    }
+
     @Override
     public BMPFile hideFile(BMPFile inFile, byte[] fileToHide, int contentSize){
+        byte[] inBytes = inFile.getBytes();
+        setupHeaderSizes(inBytes);
+
         int bytesRequiredLSB1 = bytesRequired(LSB1_START_OFFSET, fileToHide.length + INT_SIZE);
 
         // Sumamos los NUM_PATTERNS por separado dado que bytesRequired no tiene en cuenta los inversionBits
         if(inFile.getContentSize() < bytesRequiredLSB1 + NUM_PATTERNS){
             throw new RuntimeException("No tenes suficiente espacio paaaa");
         }
-
-        byte[] inBytes = inFile.getBytes();
 
         // Conseguimos las ocurrencias iniciales de los patrones
         int[] patternOccurrences = countPatternOccurrences(inBytes, LSB1_START_OFFSET, bytesRequiredLSB1);
@@ -63,6 +73,7 @@ public class LSBImproved implements LSBInterface {
     @Override
     public byte[] obtainFile(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
+        setupHeaderSizes(inBytes);
 
         boolean[] inversions = getInversions(inBytes);
 
@@ -72,6 +83,7 @@ public class LSBImproved implements LSBInterface {
     @Override
     public String getExtension(BMPFile inFile) {
         byte[] inBytes = inFile.getBytes();
+        setupHeaderSizes(inBytes);
 
         boolean[] inversions = getInversions(inBytes);
 

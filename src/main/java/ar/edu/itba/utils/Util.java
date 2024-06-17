@@ -5,7 +5,19 @@ public class Util {
     public static final int BITS_IN_BYTE = 8;
     public static final int INT_BIT_SIZE = Integer.BYTES * BITS_IN_BYTE;
 
-    public static final int BMP_HEADER_SIZE = 54;
+
+    public static final int HEADER_OFFSET_LOCATION = 10;
+
+    public static int getPixelStartOffset(byte[] infile){
+        int offset = 0;
+        for(int i=INT_SIZE-1; i>=0; i--){
+            offset |= (infile[i + HEADER_OFFSET_LOCATION] & 0xFF);
+            if(i > 0){
+                offset <<= BITS_IN_BYTE;
+            }
+        }
+        return offset;
+    }
 
     public static byte[] withExtension(byte[] infile, String extension){
         byte[] resp = new byte[infile.length + extension.length() + 1];

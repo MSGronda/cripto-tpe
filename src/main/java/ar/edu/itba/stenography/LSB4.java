@@ -19,7 +19,7 @@ public class LSB4 implements LSBInterface{
         BMPFile outFile = new BMPFile(inFile);
         byte[] outBytes = outFile.getBytes();
 
-        int outByteOffset = BMP_HEADER_SIZE;
+        int outByteOffset = getPixelStartOffset(outBytes);
 
         // Ocultamos el tamaño del archivo
         int size = contentSize;
@@ -58,7 +58,7 @@ public class LSB4 implements LSBInterface{
         int fileSize = sizeData[FILE_SIZE];
         int inBytesOffset = sizeData[OFFSET];
 
-        if(BITS_TO_HIDE * fileSize > (inBytes.length - (BMP_HEADER_SIZE + INT_BIT_SIZE)) || fileSize <= 0) {
+        if(fileSize > (inBytes.length - (getPixelStartOffset(inBytes) + INT_BIT_SIZE)) / BITS_TO_HIDE || fileSize <= 0) {
             throw new RuntimeException("Tamaño invalido de archivo (" + fileSize + ")");
         }
 
@@ -116,7 +116,7 @@ public class LSB4 implements LSBInterface{
 
     private static int[] getFileSize(BMPFile inFile){
         byte[] inBytes = inFile.getBytes();
-        int inBytesOffset = BMP_HEADER_SIZE;
+        int inBytesOffset = getPixelStartOffset(inBytes);
 
         int fileSize = 0;
 

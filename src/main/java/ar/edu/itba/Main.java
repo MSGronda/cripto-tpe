@@ -146,6 +146,11 @@ public class Main {
 
                 // Se obtiene la data de lo descifrado
                 int size = Util.getSize(hidden);
+
+                if(size > hidden.length || size <= 0) {
+                    throw new RuntimeException("Invalid size in deciphered message (" + size + ")");
+                }
+
                 extension = Util.getExtension(hidden, size);
                 hidden = Util.getData(hidden, size);
             } else{
