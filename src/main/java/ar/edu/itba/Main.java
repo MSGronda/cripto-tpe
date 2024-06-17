@@ -31,27 +31,31 @@ public class Main {
 
         String keyAlgorithm;
         int keySize;
+        int ivSize;
         switch (encryptionAlgorithm.toLowerCase()) {
             case "aes128":
                 keyAlgorithm = "AES";
                 keySize = 128;
+                ivSize = 16;
                 break;
             case "aes192":
                 keyAlgorithm = "AES";
                 keySize = 192;
+                ivSize = 16;
                 break;
             case "aes256":
                 keyAlgorithm = "AES";
                 keySize = 256;
+                ivSize = 16;
                 break;
             case "des":
                 keyAlgorithm = "TripleDES";
-                keySize = 56;
+                keySize = 192;
+                ivSize = 8;
                 break;
             default:
                 throw new IllegalArgumentException("Invalid encryption algorithm");
         }
-        int ivSize = 16;
         int totalKeyMaterialLength = keySize + (ivSize * 8);
 
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
