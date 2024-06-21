@@ -43,7 +43,7 @@ public class Parser {
         return builder.build();
     }
 
-    public static void checkParams(Arguments arguments) {
+    public static Arguments checkParams(Arguments arguments) {
         if (!arguments.isEmbed() && !arguments.isExtract()){
             System.out.println("No embed nor extract option specified");
             System.exit(1);
@@ -98,5 +98,6 @@ public class Parser {
                 }
             }
         }
+        return arguments;
     }
 }
